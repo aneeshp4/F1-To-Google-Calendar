@@ -6,11 +6,16 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import sportradarAPIGrabber as F1Sched
+import datetime
+from tzlocal import get_localzone
+
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 
 def main():
+    """ Creates a Google Calendar and populates it with the 2023 F1 schedule"""
+
     # Taken from Google Calendar API Documentation.
     creds = None
     # The file token.json stores the user's access and refresh tokens, and is
@@ -33,6 +38,7 @@ def main():
     try:
         service = build('calendar', 'v3', credentials=creds)
 
+        # Create the empty calendar
         calendar_id = add_calendar(service)
 
         # Gets the dictionary created by the sportradarAPIGrabber script
@@ -49,61 +55,40 @@ def main():
 
             timezone = round["time_zone"]
 
-            p1 = {}
-            p1["summary"] = round["round_name"] + r" - Practice 1"
-            p1["start"] = {"dateTime": round["practice_1"]["start"],
-                           "timeZone": timezone}
-            p1["end"] = {"dateTime": round["practice_1"]["end"],
-                         "timeZone": timezone}
-            events.append(p1)
+            for event in round:
+                if event != "round_name" and event != "time_zone":
 
-            p2 = {}
-            p2["summary"] = round["round_name"] + r" - Practice 2"
-            p2["start"] = {"dateTime": round["practice_2"]["start"],
-                           "timeZone": timezone}
-            p2["end"] = {"dateTime": round["practice_2"]["end"],
-                         "timeZone": timezone}
-            events.append(p2)
+                    # Create the event in google calendar format
+                    event_dict = {}
+                    event_dict["summary"] = round["round_name"] + " - " + event
+                    event_dict["start"] = {"dateTime": round[event]["start"],
+                                           "timeZone": timezone}
+                    event_dict["end"] = {"dateTime": round[event]["end"],
+                                         "timeZone": timezone}
+                    
+                    # Add the event to the events list
+                    events.append(event_dict)
 
-            p3 = {}
-            p3["summary"] = round["round_name"] + r" - Practice 3"
-            p3["start"] = {"dateTime": round["practice_3"]["start"],
-                           "timeZone": timezone}
-            p3["end"] = {"dateTime": round["practice_3"]["end"],
-                         "timeZone": timezone}
-            events.append(p3)
 
-            quali = {}
-            quali["summary"] = round["round_name"] + r" - Qualifying"
-            quali["start"] = {"dateTime": round["qualification"]["start"],
-                              "timeZone": timezone}
-            quali["end"] = {"dateTime": round["qualification"]["end"],
-                            "timeZone": timezone}
-            events.append(quali)
-
-            race = {}
-            race["summary"] = round["round_name"] + r" - Race"
-            race["start"] = {"dateTime": round["race"]["start"],
-                             "timeZone": timezone}
-            race["end"] = {"dateTime": round["race"]["end"],
-                           "timeZone": timezone}
-            events.append(race)
-
-        # Creates each event in the events list
+        # Creates each event in the events list to populate the previously empty calendar
         for event in events:
             print(event["summary"])
             event = service.events().insert(calendarId=calendar_id, body=event).execute()
             print('Event created: %s' % (event.get('htmlLink')))
+        print('All events created successfully!')
 
     except HttpError as error:
         print('An error occurred: %s' % error)
 
 
-# Creates an empty calendar in Google Calendar
 def add_calendar(service):
+    """Creates an empty calendar in Google Calendar and returns the calendar's ID"""
+
+    cur_year = datetime.date.today().year
+    local_timezone = get_localzone()
     F1_cal = {
-        'summary': 'F1 2022',
-        'timeZone': 'America/New_York'
+        'summary': 'F1 ' + str(cur_year),
+        'timeZone': local_timezone
     }
 
     created_calendar = service.calendars().insert(body=F1_cal).execute()
