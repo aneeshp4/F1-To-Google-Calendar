@@ -10,7 +10,7 @@ It uses Sport Radar's API to get the actual schedule of the current season. Then
 
 ## Usage & Installation Instructions
 
-Before you can use this, ensure you have python 3.10 setup, and ready to use. A working internet connection is also necessary! Also, make sure you are logged into the desired google account you want to add this calendar to in your deafult browser.
+Before you can use this, ensure you have python 3.10 setup, and ready to use. A working internet connection is also necessary! Also, make sure you are logged into the desired google account you want to add this calendar to in your default browser.
 
 We need to set up the environment for these scripts to run:
 
