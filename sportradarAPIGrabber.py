@@ -1,19 +1,17 @@
 import http.client
+import os
 import json
+from dotenv import load_dotenv
+import pprint
+# Load .env file and get API key
+load_dotenv()
+key = os.getenv("SPORT_RADAR_API_KEY")
 
+# Establish connection to Sport Radar API
 conn = http.client.HTTPSConnection("api.sportradar.com")
 
-key_dict = json.load(open("sportradarAPIkey.json"))
-key = key_dict["key"]
-
-season_2022_id = "sr:stage:937183"
-season_schedule_url = "/formula1/trial/v2/en/sport_events/" + \
-    season_2022_id + "/schedule.json?api_key=" + str(key)
-
-
-# Gets API requests and stores them as dictionaries
 def get_request(url):
-
+    """Makes a GET request to the Sport Radar API and returns the response as a dictionary/json"""
     conn.request(
         "GET", url)
     res = conn.getresponse()
@@ -22,9 +20,19 @@ def get_request(url):
 
     return dict
 
+def get_current_year_id():
+    """Gets the current year's ID from the API to be used to get the current season's schedule"""
 
-# Gets schedule from API and parses necessary information into a dictionary
+    url = "/formula1/trial/v2/en/seasons.json?api_key=" + str(key)
+    dict = get_request(url)
+    return dict['stages'][0]['id']
+
 def create_schedule():
+    """Gets the current season's schedule from the API and returns it as a dictionary"""
+
+    # Get season schedule URL
+    season_2023_id = get_current_year_id()
+    season_schedule_url = "/formula1/trial/v2/en/sport_events/" + season_2023_id + "/schedule.json?api_key=" + str(key)
     unorganized = get_request(season_schedule_url)
 
     schedules_organized = []
@@ -32,35 +40,21 @@ def create_schedule():
     for round in unorganized["stages"]:
 
         if round["status"] != "Cancelled":
+            
             events = {}
             events["round_name"] = round["description"]
 
-            if round["venue"]["country"] == "France":
-                events["time_zone"] = "Europe/Paris"
-            elif round["venue"]["country"] == "Monaco":
+            # Monaco was missing its timezone in the API, so I manually added it
+            if round["venue"]["country"] == "Monaco":
                 events["time_zone"] = "Europe/Monaco"
             else:
                 events["time_zone"] = round["venue"]["timezone"]
 
-            events["practice_1"] = {}
-            events["practice_1"]["start"] = round["stages"][0]["scheduled"]
-            events["practice_1"]["end"] = round["stages"][0]["scheduled_end"]
-
-            events["practice_2"] = {}
-            events["practice_2"]["start"] = round["stages"][1]["scheduled"]
-            events["practice_2"]["end"] = round["stages"][1]["scheduled_end"]
-
-            events["practice_3"] = {}
-            events["practice_3"]["start"] = round["stages"][2]["scheduled"]
-            events["practice_3"]["end"] = round["stages"][2]["scheduled_end"]
-
-            events["qualification"] = {}
-            events["qualification"]["start"] = round["stages"][3]["scheduled"]
-            events["qualification"]["end"] = round["stages"][3]["scheduled_end"]
-
-            events["race"] = {}
-            events["race"]["start"] = round["stages"][4]["scheduled"]
-            events["race"]["end"] = round["stages"][4]["scheduled_end"]
+            for event in round['stages']:
+                events[event['description']] = {}
+                events[event['description']]["start"] = event["scheduled"]
+                events[event['description']]["end"] = event["scheduled_end"]
+            
 
             schedules_organized.append(events)
 
